@@ -11,14 +11,14 @@ module.exports = (grunt) ->
           expand: true
           cwd: 'coffee/'
           src: ['**/*.coffee']
-          dest: '../gen/js'
+          dest: 'gen/js'
           ext: '.js'
           }]
 
     handlebars:
       compile:
         files:
-          '../gen/js/handlebars-templates.js': [
+          'gen/js/fixie-templates.js': [
             'handlebars/**/*.hbs'
           ]
         options:
@@ -33,32 +33,18 @@ module.exports = (grunt) ->
     #     options:
     #       dumpLineNumbers: true
     #     files:
-    #       '../static/gen/css/style.css': 'less/style.less'
+    #       'gen/css/style.css': 'less/style.less'
 
     #   production:
     #     options:
     #       yuicompress: true
     #     files:
-    #       '../static/gen/css/style.css': 'less/style.less'
-
-    dust:
-      defaults:
-        files: [{
-          expand: true,
-          cwd: 'dust/'
-          src: ['**/*.dust']
-          dest: '../gen/js/templates.js'
-          rename: (dest, src) -> dest
-          }]
-        options:
-          relative: true
-          runtime: false
-          amd: false
+    #       'gen/css/style.css': 'less/style.less'
 
     # uglify:
     #   build:
-    #     src: '../static/gen/js/*.js'
-    #     dest: '../static/gen/js/all.min.js'
+    #     src: 'gen/js/*.js'
+    #     dest: 'gen/js/all.min.js'
 
     watch:
       options:
@@ -72,10 +58,6 @@ module.exports = (grunt) ->
         files: 'less/**/*.less'
         tasks: ['less']
 
-      dust:
-        files: 'dust/**/*.dust'
-        tasks: ['dust']
-
       handlebars:
         files: 'handlebars/**/*.hbs'
         tasks: ['handlebars']
@@ -85,6 +67,5 @@ module.exports = (grunt) ->
   grunt.loadNpmTasks('grunt-contrib-uglify')
   grunt.loadNpmTasks('grunt-contrib-watch')
   grunt.loadNpmTasks('grunt-contrib-handlebars')
-  grunt.loadNpmTasks('grunt-dust')
 
-  grunt.registerTask('default', ['coffee', 'dust', 'handlebars'])
+  grunt.registerTask('default', ['coffee', 'handlebars'])
