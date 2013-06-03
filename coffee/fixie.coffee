@@ -1,9 +1,11 @@
 #
-## Fixie.js
+# Fixie.js
+#
 # Simple View plugin for in-place editing of Rich Text via Backbone model properties.
 #
 # See also:
 # http://tifftiff.de/contenteditable/compliance_test.html
+# https://developer.mozilla.org/en-US/docs/Rich-Text_Editing_in_Mozilla#Executing_Commands
 #
 verbose = false
 
@@ -21,6 +23,8 @@ render = handlebars_render
 
 
 class Editor extends Backbone.View
+  template: 'fixie-editor'
+
   cmd: (cmd_name) =>
     console.log "FixieEditor : info : running command '#{cmd_name}'"
 
@@ -43,7 +47,7 @@ class Editor extends Backbone.View
     console.log "FixieEditor : info : #{@options.property} changed"
 
   render: =>
-    template = 'editor'
+    template = @options.template or @template
     context =
       content: @model.get(@options.property)
     template_result = render template, context
