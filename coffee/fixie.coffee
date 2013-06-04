@@ -26,25 +26,30 @@ class Editor extends Backbone.View
   template: 'fixie-editor'
 
   cmd: (cmd_name) =>
-    console.log "FixieEditor : info : running command '#{cmd_name}'"
+    console.log "Fixie.Editor : info : running command '#{cmd_name}'"
 
   clean_editor_content: =>
     content = @$('div.fixie-editor-content').html()
     return content
 
   _on_edit_core: =>
-    console.log "FixieEditor : info : #{@options.property} was edited"
+    console.log "Fixie.Editor : info : #{@options.property} was edited"
     prop_set = {}
     prop_set[@options.property] = @clean_editor_content()
     @model.set(prop_set)
 
+    if @save_timer
+      window.clearTimeout(@save_timer)
+    @save_timer = window.setTimeout @save, @options.save_timeout or 2000
+
+  save: =>
+    console.log "Fixie.Editor : info : saving model for property #{@options.property}"
+    @model.save()
+
   on_edit: =>
     if @edit_timer
       window.clearTimeout @edit_timer
-    @edit_timer = window.setTimeout @_on_edit_core, 300
-
-  on_model_change: =>
-    console.log "FixieEditor : info : #{@options.property} changed"
+    @edit_timer = window.setTimeout @_on_edit_core, 250
 
   render: =>
     template = @options.template or @template
@@ -53,9 +58,8 @@ class Editor extends Backbone.View
     template_result = render template, context
     @$el.html(template_result)
 
-    # Don't allow the selection to be lost when we click on toolbar buttons
-    @$('.fixie-toolbar-item').on 'mousedown', -> event.preventDefault()
-    @$('.fixie-editor-content').on 'change', -> console.log 'changed'
+    for toolbar_item in @$('.fixie-toolbar-item')
+      toolbar_item.onmousedown = -> event.preventDefault()
 
     @
 
@@ -78,7 +82,7 @@ class Editor extends Backbone.View
 
   initialize: =>
     do @render
-    @listenTo @model, "change:#{@options.property}", @on_model_change
+    @listenToOnce @model, "change:#{@options.property}", @render
 
 class Preview extends Backbone.View
   render: =>
