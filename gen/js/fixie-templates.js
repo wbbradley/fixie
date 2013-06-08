@@ -1,7 +1,7 @@
 this["App"] = this["App"] || {};
 this["App"]["Handlebars"] = this["App"]["Handlebars"] || {};
 
-this["App"]["Handlebars"]["editor"] = Handlebars.template(function (Handlebars,depth0,helpers,partials,data) {
+this["App"]["Handlebars"]["fixie-editor"] = Handlebars.template(function (Handlebars,depth0,helpers,partials,data) {
   this.compilerInfo = [4,'>= 1.0.0'];
 helpers = this.merge(helpers, Handlebars.helpers); data = data || {};
   var buffer = "", stack1, functionType="function";

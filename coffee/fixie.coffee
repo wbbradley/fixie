@@ -21,16 +21,98 @@ handlebars_render = (template_name, context) ->
 
 render = handlebars_render
 
-
 class Editor extends Backbone.View
   template: 'fixie-editor'
 
   cmd: (cmd_name) =>
     console.log "Fixie.Editor : info : running command '#{cmd_name}'"
 
+  src_filter: (el) ->
+    src = el.attributes['src']
+    el.attributes = new NamedNodeMap
+    el.attributes.src = 'test'
+
+  scrub_link: (link) ->
+    invalid_link_predicates = [
+      /javascript/.test
+    ]
+    valid_link_predicates = [
+      /^https:\/\//.test
+      /^http:\/\//.test
+      /^\//.test
+      /^[a-zA-Z0-9]/.test
+    ]
+
+    for bad_predicate in invalid_link_predicates
+      if bad_predicate link
+        console.log "scrub_link : warning : link #{link} was scrubbed as invalid"
+        return null
+    for good_predicate in valid_link_predicates
+      if good_predicate link
+        return link
+
+  bare_scrubber: (el) ->
+    i = el.attributes.length - 1
+    while i >= 0
+      el.removeAttributeNode el.attributes.item(i)
+      i = i - 1
+    return
+
+  link_scrubber: (attribute, scrub_link) ->
+    return (el) ->
+      scrubbed_attr = null
+      if el.hasAttribute attribute
+        scrubbed_attr = scrub_link el.getAttribute attribute
+      Editor::bare_scrubber el
+      if scrubbed_attr
+        el.setAttribute attribute, scrubbed_attr
+      return
+
+  tag_filter_rules:
+    'a': @::link_scrubber 'href', @::scrub_link
+    'img': @::link_scrubber 'src', @::scrub_link
+    'b': @::bare_scrubber
+    'i': @::bare_scrubber
+    'br': @::bare_scrubber
+    'p': @::bare_scrubber
+    'blockquote': @::bare_scrubber
+    'header': @::bare_scrubber
+    'footer': @::bare_scrubber
+    'div': @::bare_scrubber
+    'span': @::bare_scrubber
+    'strong': @::bare_scrubber
+    'em': @::bare_scrubber
+    'ul': @::bare_scrubber
+    'ol': @::bare_scrubber
+    'li': @::bare_scrubber
+
+  _clean_node_core: (node) =>
+      children = node.children
+      i = children.length - 1
+      while i >= 0
+        el = children[i]
+        tagName = el.tagName.toLowerCase()
+        if tagName not of @tag_filter_rules
+          node.removeChild el
+        else
+          tag_filter = @tag_filter_rules[tagName]
+          switch typeof tag_filter
+            when 'function'
+              tag_filter el
+            when 'string'
+              el.tagName = tag_filter
+        i = i - 1
+        @_clean_node_core el
+      return
+
   clean_editor_content: =>
-    content = @$('div.fixie-editor-content').html()
-    return content
+    content = @$('div.fixie-editor-content')[0]
+    try
+      @_clean_node_core content
+    catch error
+      console.log 'Fixie : error : clean_editor_content'
+      return ''
+    return content.innerHTML
 
   _on_edit_core: =>
     console.log "Fixie.Editor : info : #{@options.property} was edited"
@@ -81,6 +163,7 @@ class Editor extends Backbone.View
     'paste div.fixie-editor-content': @on_edit
 
   initialize: =>
+    # TODO consider pre-scrubbing the HTML prior to rendering
     do @render
     @listenToOnce @model, "change:#{@options.property}", @render
 

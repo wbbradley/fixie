@@ -30,58 +30,180 @@
       this.events = __bind(this.events, this);
       this.exec_cmd = __bind(this.exec_cmd, this);
       this.render = __bind(this.render, this);
-      this.on_model_change = __bind(this.on_model_change, this);
       this.on_edit = __bind(this.on_edit, this);
+      this.save = __bind(this.save, this);
       this._on_edit_core = __bind(this._on_edit_core, this);
       this.clean_editor_content = __bind(this.clean_editor_content, this);
+      this._clean_node_core = __bind(this._clean_node_core, this);
       this.cmd = __bind(this.cmd, this);
       _ref = Editor.__super__.constructor.apply(this, arguments);
       return _ref;
     }
 
+    Editor.prototype.template = 'fixie-editor';
+
     Editor.prototype.cmd = function(cmd_name) {
-      return console.log("FixieEditor : info : running command '" + cmd_name + "'");
+      return console.log("Fixie.Editor : info : running command '" + cmd_name + "'");
+    };
+
+    Editor.prototype.src_filter = function(el) {
+      var src;
+      src = el.attributes['src'];
+      el.attributes = new NamedNodeMap;
+      return el.attributes.src = 'test';
+    };
+
+    Editor.prototype.scrub_link = function(link) {
+      var bad_predicate, good_predicate, invalid_link_predicates, valid_link_predicates, _i, _j, _len, _len1;
+      invalid_link_predicates = [
+        function(link) {
+          return /javascript/.test(link);
+        }
+      ];
+      valid_link_predicates = [
+        function(link) {
+          return /^https:\/\//.test(link);
+        }, function(link) {
+          return /^http:\/\//.test(link);
+        }, function(link) {
+          return /^\//.test(link);
+        }, function(link) {
+          return /^[a-zA-Z0-9]/.test(link);
+        }
+      ];
+      for (_i = 0, _len = invalid_link_predicates.length; _i < _len; _i++) {
+        bad_predicate = invalid_link_predicates[_i];
+        if (bad_predicate(link)) {
+          console.log("scrub_link : warning : link " + link + " was scrubbed as invalid");
+          return null;
+        }
+      }
+      for (_j = 0, _len1 = valid_link_predicates.length; _j < _len1; _j++) {
+        good_predicate = valid_link_predicates[_j];
+        if (good_predicate(link)) {
+          return link;
+        }
+      }
+    };
+
+    Editor.prototype.bare_scrubber = function(el) {
+      var i;
+      i = el.attributes.length - 1;
+      while (i >= 0) {
+        el.removeAttributeNode(el.attributes.item(i));
+        i = i - 1;
+      }
+    };
+
+    Editor.prototype.link_scrubber = function(attribute, scrub_link) {
+      return function(el) {
+        var scrubbed_attr;
+        scrubbed_attr = null;
+        if (el.hasAttribute(attribute)) {
+          scrubbed_attr = scrub_link(el.getAttribute(attribute));
+        }
+        Editor.prototype.bare_scrubber(el);
+        if (scrubbed_attr) {
+          el.setAttribute(attribute, scrubbed_attr);
+        }
+      };
+    };
+
+    Editor.prototype.tag_filter_rules = {
+      'a': Editor.prototype.link_scrubber('href', Editor.prototype.scrub_link),
+      'img': Editor.prototype.link_scrubber('src', Editor.prototype.scrub_link),
+      'b': Editor.prototype.bare_scrubber,
+      'i': Editor.prototype.bare_scrubber,
+      'br': Editor.prototype.bare_scrubber,
+      'p': Editor.prototype.bare_scrubber,
+      'blockquote': Editor.prototype.bare_scrubber,
+      'header': Editor.prototype.bare_scrubber,
+      'footer': Editor.prototype.bare_scrubber,
+      'div': Editor.prototype.bare_scrubber,
+      'span': Editor.prototype.bare_scrubber,
+      'strong': Editor.prototype.bare_scrubber,
+      'em': Editor.prototype.bare_scrubber,
+      'ul': Editor.prototype.bare_scrubber,
+      'ol': Editor.prototype.bare_scrubber,
+      'li': Editor.prototype.bare_scrubber
+    };
+
+    Editor.prototype._clean_node_core = function(node) {
+      var children, el, i, tagName, tag_filter;
+      children = node.children;
+      i = children.length - 1;
+      while (i >= 0) {
+        el = children[i];
+        tagName = el.tagName.toLowerCase();
+        if (!(tagName in this.tag_filter_rules)) {
+          node.removeChild(el);
+        } else {
+          tag_filter = this.tag_filter_rules[tagName];
+          switch (typeof tag_filter) {
+            case 'function':
+              tag_filter(el);
+              break;
+            case 'string':
+              el.tagName = tag_filter;
+          }
+        }
+        i = i - 1;
+        this._clean_node_core(el);
+      }
     };
 
     Editor.prototype.clean_editor_content = function() {
-      var content;
-      content = this.$('div.fixie-editor-content').html();
-      return content;
+      var content, error;
+      content = this.$('div.fixie-editor-content')[0];
+      try {
+        this._clean_node_core(content);
+      } catch (_error) {
+        error = _error;
+        console.log('Fixie : error : clean_editor_content');
+        return '';
+      }
+      return content.innerHTML;
     };
 
     Editor.prototype._on_edit_core = function() {
       var prop_set;
-      console.log("FixieEditor : info : " + this.options.property + " was edited");
+      console.log("Fixie.Editor : info : " + this.options.property + " was edited");
       prop_set = {};
       prop_set[this.options.property] = this.clean_editor_content();
-      return this.model.set(prop_set);
+      this.model.set(prop_set);
+      if (this.save_timer) {
+        window.clearTimeout(this.save_timer);
+      }
+      return this.save_timer = window.setTimeout(this.save, this.options.save_timeout || 2000);
+    };
+
+    Editor.prototype.save = function() {
+      console.log("Fixie.Editor : info : saving model for property " + this.options.property);
+      return this.model.save();
     };
 
     Editor.prototype.on_edit = function() {
       if (this.edit_timer) {
         window.clearTimeout(this.edit_timer);
       }
-      return this.edit_timer = window.setTimeout(this._on_edit_core, 300);
-    };
-
-    Editor.prototype.on_model_change = function() {
-      return console.log("FixieEditor : info : " + this.options.property + " changed");
+      return this.edit_timer = window.setTimeout(this._on_edit_core, 250);
     };
 
     Editor.prototype.render = function() {
-      var context, template, template_result;
-      template = 'editor';
+      var context, template, template_result, toolbar_item, _i, _len, _ref1;
+      template = this.options.template || this.template;
       context = {
         content: this.model.get(this.options.property)
       };
       template_result = render(template, context);
       this.$el.html(template_result);
-      this.$('.fixie-toolbar-item').on('mousedown', function() {
-        return event.preventDefault();
-      });
-      this.$('.fixie-editor-content').on('change', function() {
-        return console.log('changed');
-      });
+      _ref1 = this.$('.fixie-toolbar-item');
+      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+        toolbar_item = _ref1[_i];
+        toolbar_item.onmousedown = function() {
+          return event.preventDefault();
+        };
+      }
       return this;
     };
 
@@ -109,7 +231,7 @@
 
     Editor.prototype.initialize = function() {
       this.render();
-      return this.listenTo(this.model, "change:" + this.options.property, this.on_model_change);
+      return this.listenToOnce(this.model, "change:" + this.options.property, this.render);
     };
 
     return Editor;
