@@ -21,6 +21,13 @@ handlebars_render = (template_name, context) ->
 
 render = handlebars_render
 
+enqueue_children = (el, queue) ->
+  if el.children
+    for el in el.children
+      queue.push el
+
+  return
+
 class Editor extends Backbone.View
   template: 'fixie-editor'
 
@@ -34,36 +41,49 @@ class Editor extends Backbone.View
 
   scrub_link: (link) ->
     invalid_link_predicates = [
-      /javascript/.test
+      /javascript/
     ]
     valid_link_predicates = [
-      /^https:\/\//.test
-      /^http:\/\//.test
-      /^\//.test
-      /^[a-zA-Z0-9]/.test
+      /^https:\/\//
+      /^http:\/\//
+      /^\//
+      /^[a-zA-Z0-9]/
     ]
 
     for bad_predicate in invalid_link_predicates
-      if bad_predicate link
+      if bad_predicate.test link
         console.log "scrub_link : warning : link #{link} was scrubbed as invalid"
         return null
     for good_predicate in valid_link_predicates
-      if good_predicate link
+      if good_predicate.test link
         return link
 
-  bare_scrubber: (el) ->
+  bare_scrubber: (el, queue) ->
+    enqueue_children el, queue
     i = el.attributes.length - 1
     while i >= 0
       el.removeAttributeNode el.attributes.item(i)
       i = i - 1
     return
 
+  keep_children_scrubber: (el, queue) ->
+    enqueue_children el, queue
+    childNodes = el.childNodes
+    if childNodes
+      i = childNodes.length - 1
+      while i >= 0
+        el.parentNode.insertBefore childNodes[i], el
+        i = i - 1
+    el.parentNode.removeChild el
+    return
+
   link_scrubber: (attribute, scrub_link) ->
-    return (el) ->
+    return (el, queue) ->
+      enqueue_children el, queue
       scrubbed_attr = null
       if el.hasAttribute attribute
         scrubbed_attr = scrub_link el.getAttribute attribute
-      Editor::bare_scrubber el
+      Editor::bare_scrubber el, queue
       if scrubbed_attr
         el.setAttribute attribute, scrubbed_attr
       return
@@ -75,11 +95,6 @@ class Editor extends Backbone.View
     'i': @::bare_scrubber
     'br': @::bare_scrubber
     'p': @::bare_scrubber
-    'blockquote': @::bare_scrubber
-    'header': @::bare_scrubber
-    'footer': @::bare_scrubber
-    'div': @::bare_scrubber
-    'span': @::bare_scrubber
     'strong': @::bare_scrubber
     'em': @::bare_scrubber
     'ul': @::bare_scrubber
@@ -87,23 +102,24 @@ class Editor extends Backbone.View
     'li': @::bare_scrubber
 
   _clean_node_core: (node) =>
-      children = node.children
-      i = children.length - 1
-      while i >= 0
-        el = children[i]
-        tagName = el.tagName.toLowerCase()
-        if tagName not of @tag_filter_rules
-          node.removeChild el
-        else
-          tag_filter = @tag_filter_rules[tagName]
-          switch typeof tag_filter
-            when 'function'
-              tag_filter el
-            when 'string'
-              el.tagName = tag_filter
-        i = i - 1
-        @_clean_node_core el
+    if not node
       return
+
+    queue = []
+    
+    enqueue_children node, queue
+
+    while queue.length > 0
+      el = queue.pop()
+      tagName = el.tagName.toLowerCase()
+      if tagName not of @tag_filter_rules
+        @keep_children_scrubber el, queue
+      else
+        tag_filter = @tag_filter_rules[tagName]
+        if typeof tag_filter isnt 'function'
+          throw new Error 'Fixie : error : found a tag_filter that wasn\'t a function'
+        tag_filter el, queue
+    return
 
   clean_editor_content: =>
     content = @$('div.fixie-editor-content')[0]

@@ -1,5 +1,5 @@
 (function() {
-  var Editor, Fixie, Preview, handlebars_render, render, verbose, _ref, _ref1,
+  var Editor, Fixie, Preview, enqueue_children, handlebars_render, render, verbose, _ref, _ref1,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
@@ -21,6 +21,17 @@
   };
 
   render = handlebars_render;
+
+  enqueue_children = function(el, queue) {
+    var _i, _len, _ref;
+    if (el.children) {
+      _ref = el.children;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        el = _ref[_i];
+        queue.push(el);
+      }
+    }
+  };
 
   Editor = (function(_super) {
     __extends(Editor, _super);
@@ -55,39 +66,26 @@
 
     Editor.prototype.scrub_link = function(link) {
       var bad_predicate, good_predicate, invalid_link_predicates, valid_link_predicates, _i, _j, _len, _len1;
-      invalid_link_predicates = [
-        function(link) {
-          return /javascript/.test(link);
-        }
-      ];
-      valid_link_predicates = [
-        function(link) {
-          return /^https:\/\//.test(link);
-        }, function(link) {
-          return /^http:\/\//.test(link);
-        }, function(link) {
-          return /^\//.test(link);
-        }, function(link) {
-          return /^[a-zA-Z0-9]/.test(link);
-        }
-      ];
+      invalid_link_predicates = [/javascript/];
+      valid_link_predicates = [/^https:\/\//, /^http:\/\//, /^\//, /^[a-zA-Z0-9]/];
       for (_i = 0, _len = invalid_link_predicates.length; _i < _len; _i++) {
         bad_predicate = invalid_link_predicates[_i];
-        if (bad_predicate(link)) {
+        if (bad_predicate.test(link)) {
           console.log("scrub_link : warning : link " + link + " was scrubbed as invalid");
           return null;
         }
       }
       for (_j = 0, _len1 = valid_link_predicates.length; _j < _len1; _j++) {
         good_predicate = valid_link_predicates[_j];
-        if (good_predicate(link)) {
+        if (good_predicate.test(link)) {
           return link;
         }
       }
     };
 
-    Editor.prototype.bare_scrubber = function(el) {
+    Editor.prototype.bare_scrubber = function(el, queue) {
       var i;
+      enqueue_children(el, queue);
       i = el.attributes.length - 1;
       while (i >= 0) {
         el.removeAttributeNode(el.attributes.item(i));
@@ -95,14 +93,29 @@
       }
     };
 
+    Editor.prototype.keep_children_scrubber = function(el, queue) {
+      var childNodes, i;
+      enqueue_children(el, queue);
+      childNodes = el.childNodes;
+      if (childNodes) {
+        i = childNodes.length - 1;
+        while (i >= 0) {
+          el.parentNode.insertBefore(childNodes[i], el);
+          i = i - 1;
+        }
+      }
+      el.parentNode.removeChild(el);
+    };
+
     Editor.prototype.link_scrubber = function(attribute, scrub_link) {
-      return function(el) {
+      return function(el, queue) {
         var scrubbed_attr;
+        enqueue_children(el, queue);
         scrubbed_attr = null;
         if (el.hasAttribute(attribute)) {
           scrubbed_attr = scrub_link(el.getAttribute(attribute));
         }
-        Editor.prototype.bare_scrubber(el);
+        Editor.prototype.bare_scrubber(el, queue);
         if (scrubbed_attr) {
           el.setAttribute(attribute, scrubbed_attr);
         }
@@ -116,11 +129,6 @@
       'i': Editor.prototype.bare_scrubber,
       'br': Editor.prototype.bare_scrubber,
       'p': Editor.prototype.bare_scrubber,
-      'blockquote': Editor.prototype.bare_scrubber,
-      'header': Editor.prototype.bare_scrubber,
-      'footer': Editor.prototype.bare_scrubber,
-      'div': Editor.prototype.bare_scrubber,
-      'span': Editor.prototype.bare_scrubber,
       'strong': Editor.prototype.bare_scrubber,
       'em': Editor.prototype.bare_scrubber,
       'ul': Editor.prototype.bare_scrubber,
@@ -129,26 +137,24 @@
     };
 
     Editor.prototype._clean_node_core = function(node) {
-      var children, el, i, tagName, tag_filter;
-      children = node.children;
-      i = children.length - 1;
-      while (i >= 0) {
-        el = children[i];
+      var el, queue, tagName, tag_filter;
+      if (!node) {
+        return;
+      }
+      queue = [];
+      enqueue_children(node, queue);
+      while (queue.length > 0) {
+        el = queue.pop();
         tagName = el.tagName.toLowerCase();
         if (!(tagName in this.tag_filter_rules)) {
-          node.removeChild(el);
+          this.keep_children_scrubber(el, queue);
         } else {
           tag_filter = this.tag_filter_rules[tagName];
-          switch (typeof tag_filter) {
-            case 'function':
-              tag_filter(el);
-              break;
-            case 'string':
-              el.tagName = tag_filter;
+          if (typeof tag_filter !== 'function') {
+            throw new Error('Fixie : error : found a tag_filter that wasn\'t a function');
           }
+          tag_filter(el, queue);
         }
-        i = i - 1;
-        this._clean_node_core(el);
       }
     };
 
