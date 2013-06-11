@@ -57,17 +57,10 @@
       return console.log("Fixie.Editor : info : running command '" + cmd_name + "'");
     };
 
-    Editor.prototype.src_filter = function(el) {
-      var src;
-      src = el.attributes['src'];
-      el.attributes = new NamedNodeMap;
-      return el.attributes.src = 'test';
-    };
-
     Editor.prototype.scrub_link = function(link) {
       var bad_predicate, good_predicate, invalid_link_predicates, valid_link_predicates, _i, _j, _len, _len1;
       invalid_link_predicates = [/javascript/];
-      valid_link_predicates = [/^https:\/\//, /^http:\/\//, /^\//, /^[a-zA-Z0-9]/];
+      valid_link_predicates = [/^https:\/\//, /^http:\/\//, /^\//];
       for (_i = 0, _len = invalid_link_predicates.length; _i < _len; _i++) {
         bad_predicate = invalid_link_predicates[_i];
         if (bad_predicate.test(link)) {

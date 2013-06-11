@@ -34,20 +34,14 @@ class Editor extends Backbone.View
   cmd: (cmd_name) =>
     console.log "Fixie.Editor : info : running command '#{cmd_name}'"
 
-  src_filter: (el) ->
-    src = el.attributes['src']
-    el.attributes = new NamedNodeMap
-    el.attributes.src = 'test'
-
   scrub_link: (link) ->
     invalid_link_predicates = [
-      /javascript/
+      /javascript/  #  Danger!
     ]
     valid_link_predicates = [
-      /^https:\/\//
-      /^http:\/\//
-      /^\//
-      /^[a-zA-Z0-9]/
+      /^https:\/\// #  HTTPS
+      /^http:\/\//  #  HTTP
+      /^\//         #  same hostname absolute path and protocol-retaining URL (//foo.com/bar/baz)
     ]
 
     for bad_predicate in invalid_link_predicates
@@ -62,7 +56,7 @@ class Editor extends Backbone.View
     enqueue_children el, queue
     i = el.attributes.length - 1
     while i >= 0
-      el.removeAttributeNode el.attributes.item(i)
+      el.removeAttributeNode el.attributes.item i
       i = i - 1
     return
 
@@ -191,7 +185,7 @@ class Preview extends Backbone.View
     @
 
   initialize: =>
-    if  not @el
+    if not @el
         throw new Error 'Couldn\'t find el'
     @listenTo @model, 'change', @render
     @render()
