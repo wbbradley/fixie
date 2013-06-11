@@ -126,7 +126,8 @@
       'em': Editor.prototype.bare_scrubber,
       'ul': Editor.prototype.bare_scrubber,
       'ol': Editor.prototype.bare_scrubber,
-      'li': Editor.prototype.bare_scrubber
+      'li': Editor.prototype.bare_scrubber,
+      'div': Editor.prototype.bare_scrubber
     };
 
     Editor.prototype._clean_node_core = function(node) {

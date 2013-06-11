@@ -94,6 +94,7 @@ class Editor extends Backbone.View
     'ul': @::bare_scrubber
     'ol': @::bare_scrubber
     'li': @::bare_scrubber
+    'div': @::bare_scrubber
 
   _clean_node_core: (node) =>
     if not node
