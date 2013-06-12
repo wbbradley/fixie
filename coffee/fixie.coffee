@@ -29,7 +29,7 @@ enqueue_children = (el, queue) ->
   return
 
 class Editor extends Backbone.View
-  template: 'fixie-editor'
+  template: => if options?.plain_text then 'fixie-rich-editor' else 'fixie-plain-editor'
 
   cmd: (cmd_name) =>
     console.log "Fixie.Editor : info : running command '#{cmd_name}'"
@@ -96,7 +96,9 @@ class Editor extends Backbone.View
     'li': @::bare_scrubber
     'div': @::bare_scrubber
 
-  _clean_node_core: (node) =>
+  plain_filter_rules: {}
+
+  _clean_node_core: (node, rules) =>
     if not node
       return
 
@@ -107,7 +109,7 @@ class Editor extends Backbone.View
     while queue.length > 0
       el = queue.pop()
       tagName = el.tagName.toLowerCase()
-      if tagName not of @tag_filter_rules
+      if tagName not of rules
         @keep_children_scrubber el, queue
       else
         tag_filter = @tag_filter_rules[tagName]
@@ -118,8 +120,13 @@ class Editor extends Backbone.View
 
   clean_editor_content: =>
     content = @$('div.fixie-editor-content')[0]
+    if @options.plain_text
+      rules = @plain_filter_rules
+    else
+      rules = @tag_filter_rules
+
     try
-      @_clean_node_core content
+      @_clean_node_core content, rules
     catch error
       console.log 'Fixie : error : clean_editor_content'
       return ''
@@ -145,7 +152,7 @@ class Editor extends Backbone.View
     @edit_timer = window.setTimeout @_on_edit_core, 250
 
   render: =>
-    template = @options.template or @template
+    template = (_.result @options, 'template') or (_.result @, 'template')
     context =
       content: @model.get(@options.property)
     template_result = render template, context

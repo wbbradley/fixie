@@ -47,11 +47,18 @@
       this.clean_editor_content = __bind(this.clean_editor_content, this);
       this._clean_node_core = __bind(this._clean_node_core, this);
       this.cmd = __bind(this.cmd, this);
+      this.template = __bind(this.template, this);
       _ref = Editor.__super__.constructor.apply(this, arguments);
       return _ref;
     }
 
-    Editor.prototype.template = 'fixie-editor';
+    Editor.prototype.template = function() {
+      if (typeof options !== "undefined" && options !== null ? options.plain_text : void 0) {
+        return 'fixie-rich-editor';
+      } else {
+        return 'fixie-plain-editor';
+      }
+    };
 
     Editor.prototype.cmd = function(cmd_name) {
       return console.log("Fixie.Editor : info : running command '" + cmd_name + "'");
@@ -130,7 +137,9 @@
       'div': Editor.prototype.bare_scrubber
     };
 
-    Editor.prototype._clean_node_core = function(node) {
+    Editor.prototype.plain_filter_rules = {};
+
+    Editor.prototype._clean_node_core = function(node, rules) {
       var el, queue, tagName, tag_filter;
       if (!node) {
         return;
@@ -140,7 +149,7 @@
       while (queue.length > 0) {
         el = queue.pop();
         tagName = el.tagName.toLowerCase();
-        if (!(tagName in this.tag_filter_rules)) {
+        if (!(tagName in rules)) {
           this.keep_children_scrubber(el, queue);
         } else {
           tag_filter = this.tag_filter_rules[tagName];
@@ -153,10 +162,15 @@
     };
 
     Editor.prototype.clean_editor_content = function() {
-      var content, error;
+      var content, error, rules;
       content = this.$('div.fixie-editor-content')[0];
+      if (this.options.plain_text) {
+        rules = this.plain_filter_rules;
+      } else {
+        rules = this.tag_filter_rules;
+      }
       try {
-        this._clean_node_core(content);
+        this._clean_node_core(content, rules);
       } catch (_error) {
         error = _error;
         console.log('Fixie : error : clean_editor_content');
@@ -191,7 +205,7 @@
 
     Editor.prototype.render = function() {
       var context, template, template_result, toolbar_item, _i, _len, _ref1;
-      template = this.options.template || this.template;
+      template = (_.result(this.options, 'template')) || (_.result(this, 'template'));
       context = {
         content: this.model.get(this.options.property)
       };
