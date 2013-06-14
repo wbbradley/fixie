@@ -133,7 +133,7 @@
 
     Editor.prototype.clean_editor_content = function() {
       var content, error;
-      content = this.$('div.fixie-editor-content')[0];
+      content = this.$('.fixie-editor-content')[0];
       try {
         this._clean_node_core(content, _.result(this, 'rules'));
       } catch (_error) {
@@ -149,6 +149,7 @@
       console.log("Fixie.Editor : info : " + this.options.text + " was edited");
       prop_set = {};
       prop_set[this.options.text] = this.clean_editor_content();
+      this.stopListening(this.model);
       this.model.set(prop_set);
       if (this.save_timer) {
         window.clearTimeout(this.save_timer);
@@ -194,7 +195,7 @@
       if (!this.el) {
         throw new Error('Couldn\'t find el');
       }
-      this.listenTo(this.model, 'change', this.render);
+      this.listenTo(this.model, "change:" + this.options.text, this.render);
       return this.render();
     };
 
@@ -220,10 +221,10 @@
 
     URLEditor.prototype.events = function() {
       return {
-        'blur div.fixie-editor-content': this.on_edit,
-        'keyup div.fixie-editor-content': this.on_edit,
-        'paste div.fixie-editor-content': this.on_edit,
-        'click input.fixie-url-link-edit': this.on_link_edit
+        'blur .fixie-editor-content': this.on_edit,
+        'keyup .fixie-editor-content': this.on_edit,
+        'paste .fixie-editor-content': this.on_edit,
+        'click .fixie-url-link-edit': this.on_link_edit
       };
     };
 
@@ -245,9 +246,7 @@
       };
       template_result = render(template, context);
       this.$el.html(template_result);
-      if (!this.model.has(this.options.text) || !this.model.has(this.options.link_url)) {
-        this.listenToOnce(this.model, "change", this.render);
-      }
+      this.listenToOnce(this.model, 'change', this.render);
       return this;
     };
 
@@ -276,9 +275,9 @@
 
     PlainTextEditor.prototype.events = function() {
       return {
-        'blur div.fixie-editor-content': this.on_edit,
-        'keyup div.fixie-editor-content': this.on_edit,
-        'paste div.fixie-editor-content': this.on_edit
+        'blur .fixie-editor-content': this.on_edit,
+        'keyup .fixie-editor-content': this.on_edit,
+        'paste .fixie-editor-content': this.on_edit
       };
     };
 
@@ -290,9 +289,7 @@
       };
       template_result = render(template, context);
       this.$el.html(template_result);
-      if (!this.model.has(this.options.text)) {
-        this.listenToOnce(this.model, "change:" + this.options.text, this.render);
-      }
+      this.listenToOnce(this.model, "change:" + this.options.text, this.render);
       return this;
     };
 
@@ -348,10 +345,10 @@
 
     RichTextEditor.prototype.events = function() {
       return {
-        'click div.fixie-toolbar-item': this.exec_cmd,
-        'blur div.fixie-editor-content': this.on_edit,
-        'keyup div.fixie-editor-content': this.on_edit,
-        'paste div.fixie-editor-content': this.on_edit
+        'click .fixie-toolbar-item': this.exec_cmd,
+        'blur .fixie-editor-content': this.on_edit,
+        'keyup .fixie-editor-content': this.on_edit,
+        'paste .fixie-editor-content': this.on_edit
       };
     };
 
@@ -370,9 +367,7 @@
           return event.preventDefault();
         };
       }
-      if (!this.model.has(this.options.text)) {
-        this.listenToOnce(this.model, "change:" + this.options.text, this.render);
-      }
+      this.listenToOnce(this.model, "change:" + this.options.text, this.render);
       return this;
     };
 

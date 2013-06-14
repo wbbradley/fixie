@@ -101,7 +101,7 @@ class Editor extends Backbone.View
     return
 
   clean_editor_content: =>
-    content = @$('div.fixie-editor-content')[0]
+    content = @$('.fixie-editor-content')[0]
 
     try
       @_clean_node_core content, _.result(@, 'rules')
@@ -114,6 +114,7 @@ class Editor extends Backbone.View
     console.log "Fixie.Editor : info : #{@options.text} was edited"
     prop_set = {}
     prop_set[@options.text] = @clean_editor_content()
+    @stopListening @model
     @model.set prop_set
 
     if @save_timer
@@ -130,8 +131,6 @@ class Editor extends Backbone.View
     @edit_timer = window.setTimeout @_on_edit_core, 250
 
 
-
-
 class Preview extends Backbone.View
   render: =>
     if not @options.text
@@ -142,17 +141,17 @@ class Preview extends Backbone.View
   initialize: =>
     if not @el
         throw new Error 'Couldn\'t find el'
-    @listenTo @model, 'change', @render
+    @listenTo @model, "change:#{@options.text}", @render
     @render()
 
 class URLEditor extends Editor
   template: 'fixie-url-editor'
   rules: {}
   events: =>
-    'blur div.fixie-editor-content': @on_edit
-    'keyup div.fixie-editor-content': @on_edit
-    'paste div.fixie-editor-content': @on_edit
-    'click input.fixie-url-link-edit': @on_link_edit
+    'blur .fixie-editor-content': @on_edit
+    'keyup .fixie-editor-content': @on_edit
+    'paste .fixie-editor-content': @on_edit
+    'click .fixie-url-link-edit': @on_link_edit
  
   on_link_edit: =>
     link = window.prompt 'Please enter a URL:', @model.get(@options.link_url)
@@ -168,8 +167,7 @@ class URLEditor extends Editor
       text: @model.get(@options.text)
     template_result = render template, context
     @$el.html(template_result)
-    if not @model.has(@options.text) or not @model.has(@options.link_url)
-      @listenToOnce @model, "change", @render
+    @listenToOnce @model, 'change', @render
     @
 
   initialize: =>
@@ -180,9 +178,9 @@ class PlainTextEditor extends Editor
   template: 'fixie-plain-editor'
   rules: {}
   events: =>
-    'blur div.fixie-editor-content': @on_edit
-    'keyup div.fixie-editor-content': @on_edit
-    'paste div.fixie-editor-content': @on_edit
+    'blur .fixie-editor-content': @on_edit
+    'keyup .fixie-editor-content': @on_edit
+    'paste .fixie-editor-content': @on_edit
   
   render: =>
     template = (_.result @options, 'template') or (_.result @, 'template')
@@ -190,8 +188,7 @@ class PlainTextEditor extends Editor
       text: @model.get(@options.text)
     template_result = render template, context
     @$el.html(template_result)
-    if not @model.has(@options.text)
-      @listenToOnce @model, "change:#{@options.text}", @render
+    @listenToOnce @model, "change:#{@options.text}", @render
     @
 
   initialize: =>
@@ -225,10 +222,10 @@ class RichTextEditor extends Editor
     else
       throw new Error 'Fixie.Editor : error : document.execCommand not supported'
   events: =>
-    'click div.fixie-toolbar-item': @exec_cmd
-    'blur div.fixie-editor-content': @on_edit
-    'keyup div.fixie-editor-content': @on_edit
-    'paste div.fixie-editor-content': @on_edit
+    'click .fixie-toolbar-item': @exec_cmd
+    'blur .fixie-editor-content': @on_edit
+    'keyup .fixie-editor-content': @on_edit
+    'paste .fixie-editor-content': @on_edit
 
   render: =>
     template = (_.result @options, 'template') or (_.result @, 'template')
@@ -240,9 +237,7 @@ class RichTextEditor extends Editor
     for toolbar_item in @$('.fixie-toolbar-item')
       toolbar_item.onmousedown = -> event.preventDefault()
 
-    if not @model.has(@options.text)
-      @listenToOnce @model, "change:#{@options.text}", @render
-
+    @listenToOnce @model, "change:#{@options.text}", @render
     @
 
   initialize: =>
