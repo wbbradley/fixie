@@ -76,6 +76,13 @@ link_scrubber = (attribute, scrub_link) ->
       el.setAttribute attribute, scrubbed_attr
     return
 
+find_command = (node) ->
+  while node and node.nodeType is Node.ELEMENT_NODE
+    if node.hasAttribute 'data-fixie-cmd'
+      return node.getAttribute 'data-fixie-cmd'
+    node = node.parentNode
+  return null
+
 class Editor extends Backbone.View
   cmd: (cmd_name) =>
     console.log "Fixie.Editor : info : running command '#{cmd_name}'"
@@ -85,7 +92,14 @@ class Editor extends Backbone.View
       return
 
     queue = []
-    
+
+    # HACK: remove useless BR tags at the beginning of the contenteditable
+    while node.childNodes.length > 0
+      firstChild = node.childNodes[0]
+      if firstChild.nodeType is Node.ELEMENT_NODE and firstChild.tagName.toLowerCase() is 'br'
+        node.removeChild firstChild
+      else
+        break
     enqueue_children node, queue
 
     while queue.length > 0
@@ -157,7 +171,8 @@ class URLEditor extends Editor
     link = window.prompt 'Please enter a URL:', @model.get(@options.link_url)
     prop_set = {}
     prop_set[@options.link_url] = link
-    @model.save prop_set
+    @model.set prop_set
+    @model.save()
     @render()
 
   render: =>
@@ -212,15 +227,16 @@ class RichTextEditor extends Editor
     'li': bare_scrubber
     'div': bare_scrubber
   exec_cmd: =>
-    $node = $(event.target)
     if document.execCommand
-      command = $node.data('fixie-cmd')
-      console.log "Fixie.Editor : info : running command '#{command}'"
-      document.execCommand command
-      @on_edit()
-      return
+      command = find_command(event.target)
+      if command
+        console.log "Fixie.Editor : info : running command '#{command}'"
+        document.execCommand command
+        @on_edit()
+        return false
     else
       throw new Error 'Fixie.Editor : error : document.execCommand not supported'
+    return true
   events: =>
     'click .fixie-toolbar-item': @exec_cmd
     'blur .fixie-editor-content': @on_edit

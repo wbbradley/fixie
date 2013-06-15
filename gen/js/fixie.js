@@ -1,5 +1,5 @@
 (function() {
-  var Editor, Fixie, PlainTextEditor, Preview, RichTextEditor, URLEditor, bare_scrubber, enqueue_children, handlebars_render, keep_children_scrubber, link_scrubber, render, scrub_link, verbose, _ref, _ref1, _ref2, _ref3, _ref4,
+  var Editor, Fixie, PlainTextEditor, Preview, RichTextEditor, URLEditor, bare_scrubber, enqueue_children, find_command, handlebars_render, keep_children_scrubber, link_scrubber, render, scrub_link, verbose, _ref, _ref1, _ref2, _ref3, _ref4,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
@@ -91,6 +91,16 @@
     };
   };
 
+  find_command = function(node) {
+    while (node && node.nodeType === Node.ELEMENT_NODE) {
+      if (node.hasAttribute('data-fixie-cmd')) {
+        return node.getAttribute('data-fixie-cmd');
+      }
+      node = node.parentNode;
+    }
+    return null;
+  };
+
   Editor = (function(_super) {
     __extends(Editor, _super);
 
@@ -110,11 +120,19 @@
     };
 
     Editor.prototype._clean_node_core = function(node, rules) {
-      var el, queue, tagName, tag_filter;
+      var el, firstChild, queue, tagName, tag_filter;
       if (!node) {
         return;
       }
       queue = [];
+      while (node.childNodes.length > 0) {
+        firstChild = node.childNodes[0];
+        if (firstChild.nodeType === Node.ELEMENT_NODE && firstChild.tagName.toLowerCase() === 'br') {
+          node.removeChild(firstChild);
+        } else {
+          break;
+        }
+      }
       enqueue_children(node, queue);
       while (queue.length > 0) {
         el = queue.pop();
@@ -233,7 +251,8 @@
       link = window.prompt('Please enter a URL:', this.model.get(this.options.link_url));
       prop_set = {};
       prop_set[this.options.link_url] = link;
-      this.model.save(prop_set);
+      this.model.set(prop_set);
+      this.model.save();
       return this.render();
     };
 
@@ -331,16 +350,19 @@
     };
 
     RichTextEditor.prototype.exec_cmd = function() {
-      var $node, command;
-      $node = $(event.target);
+      var command;
       if (document.execCommand) {
-        command = $node.data('fixie-cmd');
-        console.log("Fixie.Editor : info : running command '" + command + "'");
-        document.execCommand(command);
-        this.on_edit();
+        command = find_command(event.target);
+        if (command) {
+          console.log("Fixie.Editor : info : running command '" + command + "'");
+          document.execCommand(command);
+          this.on_edit();
+          return false;
+        }
       } else {
         throw new Error('Fixie.Editor : error : document.execCommand not supported');
       }
+      return true;
     };
 
     RichTextEditor.prototype.events = function() {
