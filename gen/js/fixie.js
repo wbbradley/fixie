@@ -283,6 +283,7 @@
     function PlainTextEditor() {
       this.initialize = __bind(this.initialize, this);
       this.render = __bind(this.render, this);
+      this.clean_editor_content = __bind(this.clean_editor_content, this);
       this.events = __bind(this.events, this);
       _ref3 = PlainTextEditor.__super__.constructor.apply(this, arguments);
       return _ref3;
@@ -298,6 +299,12 @@
         'keyup .fixie-editor-content': this.on_edit,
         'paste .fixie-editor-content': this.on_edit
       };
+    };
+
+    PlainTextEditor.prototype.clean_editor_content = function() {
+      var content;
+      content = this.$('.fixie-editor-content')[0].innerText;
+      return content;
     };
 
     PlainTextEditor.prototype.render = function() {

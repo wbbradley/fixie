@@ -196,7 +196,11 @@ class PlainTextEditor extends Editor
     'blur .fixie-editor-content': @on_edit
     'keyup .fixie-editor-content': @on_edit
     'paste .fixie-editor-content': @on_edit
-  
+
+  clean_editor_content: =>
+    content = @$('.fixie-editor-content')[0].innerText
+    return content
+
   render: =>
     template = (_.result @options, 'template') or (_.result @, 'template')
     context =
