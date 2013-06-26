@@ -84,7 +84,7 @@
       if (el.hasAttribute(attribute)) {
         scrubbed_attr = scrub_link(el.getAttribute(attribute));
       }
-      Editor.prototype.bare_scrubber(el, queue);
+      bare_scrubber(el, queue);
       if (scrubbed_attr) {
         el.setAttribute(attribute, scrubbed_attr);
       }
@@ -140,7 +140,7 @@
         if (!(tagName in rules)) {
           keep_children_scrubber(el, queue);
         } else {
-          tag_filter = this.tag_filter_rules[tagName];
+          tag_filter = rules[tagName];
           if (typeof tag_filter !== 'function') {
             throw new Error('Fixie : error : found a tag_filter that wasn\'t a function');
           }
@@ -150,15 +150,9 @@
     };
 
     Editor.prototype.clean_editor_content = function() {
-      var content, error;
+      var content;
       content = this.$('.fixie-editor-content')[0];
-      try {
-        this._clean_node_core(content, _.result(this, 'rules'));
-      } catch (_error) {
-        error = _error;
-        console.log('Fixie : error : clean_editor_content');
-        return '';
-      }
+      this._clean_node_core(content, _.result(this, 'rules'));
       return content.innerHTML;
     };
 
@@ -239,7 +233,6 @@
 
     URLEditor.prototype.events = function() {
       return {
-        'blur .fixie-editor-content': this.on_edit,
         'keyup .fixie-editor-content': this.on_edit,
         'paste .fixie-editor-content': this.on_edit,
         'click .fixie-url-link-edit': this.on_link_edit
@@ -295,15 +288,22 @@
 
     PlainTextEditor.prototype.events = function() {
       return {
-        'blur .fixie-editor-content': this.on_edit,
         'keyup .fixie-editor-content': this.on_edit,
         'paste .fixie-editor-content': this.on_edit
       };
     };
 
     PlainTextEditor.prototype.clean_editor_content = function() {
-      var content;
+      var content, len;
       content = this.$('.fixie-editor-content')[0].innerText;
+      content = content.replace(/[\r\n]/g, ' ');
+      while (true) {
+        len = content.length;
+        content = content.replace('  ', ' ');
+        if (len === content.length) {
+          break;
+        }
+      }
       return content;
     };
 
@@ -335,6 +335,8 @@
       this.render = __bind(this.render, this);
       this.events = __bind(this.events, this);
       this.exec_cmd = __bind(this.exec_cmd, this);
+      this.insertLink = __bind(this.insertLink, this);
+      this.dispatch = __bind(this.dispatch, this);
       _ref4 = RichTextEditor.__super__.constructor.apply(this, arguments);
       return _ref4;
     }
@@ -356,26 +358,55 @@
       'div': bare_scrubber
     };
 
-    RichTextEditor.prototype.exec_cmd = function() {
-      var command;
+    RichTextEditor.prototype.dispatch = function(command) {
       if (document.execCommand) {
-        command = find_command(event.target);
-        if (command) {
+        if (command && document.queryCommandEnabled(command)) {
           console.log("Fixie.Editor : info : running command '" + command + "'");
           document.execCommand(command);
-          this.on_edit();
-          return false;
+          return this.on_edit();
+        } else {
+          return console.log("Fixie.Editor : info : command " + command + " is currently not enabled.");
         }
       } else {
-        throw new Error('Fixie.Editor : error : document.execCommand not supported');
+        throw new Error('Fixie.Editor : error : browser support is not available for this operation');
       }
-      return true;
+    };
+
+    RichTextEditor.prototype.insertLink = function() {
+      var link;
+      if (typeof document !== "undefined" && document !== null ? document.queryCommandEnabled('createlink') : void 0) {
+        link = scrub_link(window.prompt('Please enter a URL:', this.model.get(this.options.link_url)));
+        if (link) {
+          document.execCommand('createlink', false, link);
+          this.on_edit();
+        } else {
+          window.alert('Please try again. Urls must begin with /, http://, or https://');
+        }
+      }
+      return console.log('Fixie.Editor : info : createlink is not enabled');
+    };
+
+    RichTextEditor.prototype.exec_cmd = function() {
+      var cmd_dispatch, command, dispatch;
+      cmd_dispatch = {
+        bold: this.dispatch,
+        italic: this.dispatch,
+        insertOrderedList: this.dispatch,
+        insertUnorderedList: this.dispatch,
+        insertLink: this.insertLink
+      };
+      command = find_command(event.target);
+      if (command in cmd_dispatch) {
+        dispatch = cmd_dispatch[command](command);
+      } else {
+        throw new Error('Fixie.Editor : error : unexepected fixie-cmd');
+      }
+      return false;
     };
 
     RichTextEditor.prototype.events = function() {
       return {
         'click .fixie-toolbar-item': this.exec_cmd,
-        'blur .fixie-editor-content': this.on_edit,
         'keyup .fixie-editor-content': this.on_edit,
         'paste .fixie-editor-content': this.on_edit
       };

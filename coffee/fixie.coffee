@@ -71,7 +71,7 @@ link_scrubber = (attribute, scrub_link) ->
     scrubbed_attr = null
     if el.hasAttribute attribute
       scrubbed_attr = scrub_link el.getAttribute attribute
-    Editor::bare_scrubber el, queue
+    bare_scrubber el, queue
     if scrubbed_attr
       el.setAttribute attribute, scrubbed_attr
     return
@@ -108,7 +108,7 @@ class Editor extends Backbone.View
       if tagName not of rules
         keep_children_scrubber el, queue
       else
-        tag_filter = @tag_filter_rules[tagName]
+        tag_filter = rules[tagName]
         if typeof tag_filter isnt 'function'
           throw new Error 'Fixie : error : found a tag_filter that wasn\'t a function'
         tag_filter el, queue
@@ -116,12 +116,7 @@ class Editor extends Backbone.View
 
   clean_editor_content: =>
     content = @$('.fixie-editor-content')[0]
-
-    try
-      @_clean_node_core content, _.result(@, 'rules')
-    catch error
-      console.log 'Fixie : error : clean_editor_content'
-      return ''
+    @_clean_node_core content, _.result(@, 'rules')
     return content.innerHTML
 
   _on_edit_core: =>
@@ -162,7 +157,6 @@ class URLEditor extends Editor
   template: 'fixie-url-editor'
   rules: {}
   events: =>
-    'blur .fixie-editor-content': @on_edit
     'keyup .fixie-editor-content': @on_edit
     'paste .fixie-editor-content': @on_edit
     'click .fixie-url-link-edit': @on_link_edit
@@ -193,12 +187,17 @@ class PlainTextEditor extends Editor
   template: 'fixie-plain-editor'
   rules: {}
   events: =>
-    'blur .fixie-editor-content': @on_edit
     'keyup .fixie-editor-content': @on_edit
     'paste .fixie-editor-content': @on_edit
 
   clean_editor_content: =>
     content = @$('.fixie-editor-content')[0].innerText
+    content = content.replace(/[\r\n]/g, ' ')
+    while true
+      len = content.length
+      content = content.replace('  ', ' ')
+      if len is content.length
+        break
     return content
 
   render: =>
@@ -230,20 +229,46 @@ class RichTextEditor extends Editor
     'ol': bare_scrubber
     'li': bare_scrubber
     'div': bare_scrubber
-  exec_cmd: =>
+
+  dispatch: (command) =>
     if document.execCommand
-      command = find_command(event.target)
-      if command
+      if command and document.queryCommandEnabled command
         console.log "Fixie.Editor : info : running command '#{command}'"
         document.execCommand command
         @on_edit()
-        return false
+      else
+        console.log "Fixie.Editor : info : command #{command} is currently not enabled."
     else
-      throw new Error 'Fixie.Editor : error : document.execCommand not supported'
-    return true
+      throw new Error 'Fixie.Editor : error : browser support is not available for this operation'
+
+  insertLink: =>
+    if document?.queryCommandEnabled 'createlink'
+      link = scrub_link window.prompt 'Please enter a URL:', @model.get(@options.link_url)
+      if link
+        document.execCommand 'createlink', false, link
+        @on_edit()
+      else
+        window.alert 'Please try again. Urls must begin with /, http://, or https://'
+    console.log 'Fixie.Editor : info : createlink is not enabled'
+
+  exec_cmd: =>
+    cmd_dispatch =
+      bold: @dispatch
+      italic: @dispatch
+      insertOrderedList: @dispatch
+      insertUnorderedList: @dispatch
+      insertLink: @insertLink
+
+    command = find_command(event.target)
+    if command of cmd_dispatch
+      dispatch = cmd_dispatch[command](command)
+    else
+      throw new Error 'Fixie.Editor : error : unexepected fixie-cmd'
+
+    return false
+
   events: =>
     'click .fixie-toolbar-item': @exec_cmd
-    'blur .fixie-editor-content': @on_edit
     'keyup .fixie-editor-content': @on_edit
     'paste .fixie-editor-content': @on_edit
 
