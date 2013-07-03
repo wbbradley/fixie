@@ -164,7 +164,7 @@ class URLEditor extends Editor
   on_link_edit: =>
     link = window.prompt 'Please enter a URL:', @model.get(@options.link_url)
     prop_set = {}
-    prop_set[@options.link_url] = link
+    prop_set[@options.link_url] = (scrub_link link) or ''
     @model.set prop_set
     @model.save()
     @render()
