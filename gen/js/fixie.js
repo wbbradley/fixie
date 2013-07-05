@@ -243,7 +243,7 @@
       var link, prop_set;
       link = window.prompt('Please enter a URL:', this.model.get(this.options.link_url));
       prop_set = {};
-      prop_set[this.options.link_url] = link;
+      prop_set[this.options.link_url] = (scrub_link(link)) || '';
       this.model.set(prop_set);
       this.model.save();
       return this.render();
