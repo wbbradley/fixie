@@ -106,14 +106,33 @@
 
     function Editor() {
       this.on_edit = __bind(this.on_edit, this);
-      this.save = __bind(this.save, this);
       this._on_edit_core = __bind(this._on_edit_core, this);
       this.clean_editor_content = __bind(this.clean_editor_content, this);
       this._clean_node_core = __bind(this._clean_node_core, this);
       this.cmd = __bind(this.cmd, this);
+      this.initialize = __bind(this.initialize, this);
+      this.displayError = __bind(this.displayError, this);
       _ref = Editor.__super__.constructor.apply(this, arguments);
       return _ref;
     }
+
+    Editor.prototype.displayError = function(error) {
+      return this.el.style.backgroundColor = '#ffbbbb';
+    };
+
+    Editor.prototype.initialize = function() {
+      var _this = this;
+      this.listenTo(this.model, "synced", function() {
+        return _this.el.style.backgroundColor = 'white';
+      });
+      this.listenTo(this.model, "validation-error", function(error) {
+        if (error.field === _this.options.text) {
+          _this.displayError(error);
+        }
+        return console.log;
+      });
+      return this.render();
+    };
 
     Editor.prototype.cmd = function(cmd_name) {
       return console.log("Fixie.Editor : info : running command '" + cmd_name + "'");
@@ -161,17 +180,8 @@
       console.log("Fixie.Editor : info : " + this.options.text + " was edited");
       prop_set = {};
       prop_set[this.options.text] = this.clean_editor_content();
-      this.stopListening(this.model);
-      this.model.set(prop_set);
-      if (this.save_timer) {
-        window.clearTimeout(this.save_timer);
-      }
-      return this.save_timer = window.setTimeout(this.save, this.options.save_timeout || 2000);
-    };
-
-    Editor.prototype.save = function() {
-      console.log("Fixie.Editor : info : saving model for property " + this.options.text);
-      return this.model.save();
+      this.stopListening(this.model, "change:" + this.options.text);
+      return this.model.set(prop_set);
     };
 
     Editor.prototype.on_edit = function() {
@@ -245,7 +255,6 @@
       prop_set = {};
       prop_set[this.options.link_url] = (scrub_link(link)) || '';
       this.model.set(prop_set);
-      this.model.save();
       return this.render();
     };
 
@@ -320,7 +329,7 @@
     };
 
     PlainTextEditor.prototype.initialize = function() {
-      return this.render();
+      return PlainTextEditor.__super__.initialize.apply(this, arguments);
     };
 
     return PlainTextEditor;
@@ -432,7 +441,7 @@
     };
 
     RichTextEditor.prototype.initialize = function() {
-      return this.render();
+      return RichTextEditor.__super__.initialize.apply(this, arguments);
     };
 
     return RichTextEditor;

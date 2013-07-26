@@ -84,6 +84,17 @@ find_command = (node) ->
   return null
 
 class Editor extends Backbone.View
+  displayError: (error) =>
+    @el.style.backgroundColor = '#ffbbbb'
+
+  initialize: =>
+    @listenTo @model, "synced", =>
+      @el.style.backgroundColor = 'white'
+    @listenTo @model, "validation-error", (error) =>
+      if error.field is @options.text
+        @displayError error
+      console.log
+    do @render
   cmd: (cmd_name) =>
     console.log "Fixie.Editor : info : running command '#{cmd_name}'"
 
@@ -123,16 +134,8 @@ class Editor extends Backbone.View
     console.log "Fixie.Editor : info : #{@options.text} was edited"
     prop_set = {}
     prop_set[@options.text] = @clean_editor_content()
-    @stopListening @model
+    @stopListening @model, "change:#{@options.text}"
     @model.set prop_set
-
-    if @save_timer
-      window.clearTimeout(@save_timer)
-    @save_timer = window.setTimeout @save, @options.save_timeout or 2000
-
-  save: =>
-    console.log "Fixie.Editor : info : saving model for property #{@options.text}"
-    @model.save()
 
   on_edit: =>
     if @edit_timer
@@ -166,7 +169,6 @@ class URLEditor extends Editor
     prop_set = {}
     prop_set[@options.link_url] = (scrub_link link) or ''
     @model.set prop_set
-    @model.save()
     @render()
 
   render: =>
@@ -210,8 +212,7 @@ class PlainTextEditor extends Editor
     @
 
   initialize: =>
-    # TODO consider pre-scrubbing the HTML prior to rendering
-    do @render
+    super
 
 
 class RichTextEditor extends Editor
@@ -287,7 +288,7 @@ class RichTextEditor extends Editor
 
   initialize: =>
     # TODO consider pre-scrubbing the HTML prior to rendering
-    do @render
+    super
 
 
 
