@@ -305,11 +305,39 @@ class DateEditor extends PlainTextEditor
     catch e
     return
 
+class Checkbox extends Backbone.View
+  render: =>
+    checked = @model.get(@options.property)
+    html = """
+      <form onsubmit='event.preventDefault()'>
+        <label class='fixie-checkbox'>
+          <input type='checkbox' name='#{@options.property}' #{if checked then 'checked' else ''}>
+          <span>&nbsp;#{@options.description or @options.property}</span>
+        </label>
+      </form>"""
+    @$el.html html
+
+    @
+
+  detectChange: =>
+    checked = @$('input').is(':checked')
+    @model.set @options.property, checked
+
+  events: =>
+    "change input[type=checkbox]": 'detectChange'
+
+  initialize: =>
+    if not @el
+        throw new Error "Couldn't find el"
+    @listenTo @model, "change:#{@options.property}", @render
+    @render()
+
 class Fixie
   @PlainTextEditor = PlainTextEditor
   @RichTextEditor = RichTextEditor
   @DateEditor = DateEditor
   @URLEditor = URLEditor
   @Preview = Preview
+  @Checkbox = Checkbox
 
 @Fixie = Fixie
