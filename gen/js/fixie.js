@@ -1,5 +1,5 @@
 (function() {
-  var Editor, Fixie, PlainTextEditor, Preview, RichTextEditor, URLEditor, bare_scrubber, enqueue_children, find_command, handlebars_render, keep_children_scrubber, link_scrubber, render, scrub_link, verbose, _ref, _ref1, _ref2, _ref3, _ref4,
+  var DateEditor, Editor, Fixie, PlainTextEditor, Preview, RichTextEditor, URLEditor, bare_scrubber, enqueue_children, find_command, handlebars_render, keep_children_scrubber, link_scrubber, render, scrub_link, verbose, _ref, _ref1, _ref2, _ref3, _ref4, _ref5,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
@@ -303,8 +303,9 @@
     };
 
     PlainTextEditor.prototype.clean_editor_content = function() {
-      var content, len;
-      content = this.$('.fixie-editor-content')[0].innerText;
+      var $el, content, htmlInEl, len;
+      $el = this.$('.fixie-editor-content');
+      content = $el[0].innerText;
       content = content.replace(/[\r\n]/g, ' ');
       while (true) {
         len = content.length;
@@ -312,6 +313,10 @@
         if (len === content.length) {
           break;
         }
+      }
+      htmlInEl = $el[0].innerHTML;
+      if (htmlInEl.indexOf('<') !== -1) {
+        $el.text(content);
       }
       return content;
     };
@@ -448,12 +453,40 @@
 
   })(Editor);
 
+  DateEditor = (function(_super) {
+    __extends(DateEditor, _super);
+
+    function DateEditor() {
+      this._on_edit_core = __bind(this._on_edit_core, this);
+      _ref5 = DateEditor.__super__.constructor.apply(this, arguments);
+      return _ref5;
+    }
+
+    DateEditor.prototype._on_edit_core = function() {
+      var e, prop_set;
+      console.log("Fixie.DateEditor : info : " + this.options.text + " was edited");
+      try {
+        prop_set = {};
+        prop_set[this.options.text] = (new Date(this.clean_editor_content())).toISOString();
+        this.stopListening(this.model, "change:" + this.options.text);
+        this.model.set(prop_set);
+      } catch (_error) {
+        e = _error;
+      }
+    };
+
+    return DateEditor;
+
+  })(PlainTextEditor);
+
   Fixie = (function() {
     function Fixie() {}
 
     Fixie.PlainTextEditor = PlainTextEditor;
 
     Fixie.RichTextEditor = RichTextEditor;
+
+    Fixie.DateEditor = DateEditor;
 
     Fixie.URLEditor = URLEditor;
 

@@ -193,13 +193,17 @@ class PlainTextEditor extends Editor
     'paste .fixie-editor-content': @on_edit
 
   clean_editor_content: =>
-    content = @$('.fixie-editor-content')[0].innerText
+    $el = @$('.fixie-editor-content')
+    content = $el[0].innerText
     content = content.replace(/[\r\n]/g, ' ')
     while true
       len = content.length
       content = content.replace('  ', ' ')
       if len is content.length
         break
+    htmlInEl = $el[0].innerHTML
+    if htmlInEl.indexOf('<') isnt -1
+      $el.text content
     return content
 
   render: =>
@@ -290,11 +294,21 @@ class RichTextEditor extends Editor
     # TODO consider pre-scrubbing the HTML prior to rendering
     super
 
-
+class DateEditor extends PlainTextEditor
+  _on_edit_core: =>
+    console.log "Fixie.DateEditor : info : #{@options.text} was edited"
+    try
+      prop_set = {}
+      prop_set[@options.text] = (new Date(@clean_editor_content())).toISOString()
+      @stopListening @model, "change:#{@options.text}"
+      @model.set prop_set
+    catch e
+    return
 
 class Fixie
   @PlainTextEditor = PlainTextEditor
   @RichTextEditor = RichTextEditor
+  @DateEditor = DateEditor
   @URLEditor = URLEditor
   @Preview = Preview
 
