@@ -1,5 +1,5 @@
 (function() {
-  var DateEditor, Editor, Fixie, PlainTextEditor, Preview, RichTextEditor, URLEditor, bare_scrubber, enqueue_children, find_command, handlebars_render, keep_children_scrubber, link_scrubber, render, scrub_link, verbose, _ref, _ref1, _ref2, _ref3, _ref4, _ref5,
+  var Checkbox, DateEditor, Editor, Fixie, PlainTextEditor, Preview, RichTextEditor, URLEditor, assert, bare_scrubber, checkQueue, convert_to, enqueue_children, find_command, handlebars_render, keep_children_scrubber, link_scrubber, render, scrub_link, verbose, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
@@ -22,13 +22,29 @@
 
   render = handlebars_render;
 
+  checkQueue = function(queue) {
+    var el, _i, _len, _results;
+    _results = [];
+    for (_i = 0, _len = queue.length; _i < _len; _i++) {
+      el = queue[_i];
+      if (!el.parentNode) {
+        throw new Error('orphaned node in queue');
+      } else {
+        _results.push(void 0);
+      }
+    }
+    return _results;
+  };
+
   enqueue_children = function(el, queue) {
-    var _i, _len, _ref;
+    var elChild, _i, _len, _ref;
+    checkQueue(queue);
     if (el.children) {
       _ref = el.children;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        el = _ref[_i];
-        queue.push(el);
+        elChild = _ref[_i];
+        assert(queue.indexOf(elChild) === -1);
+        queue.push(elChild);
       }
     }
   };
@@ -60,20 +76,64 @@
       el.removeAttributeNode(el.attributes.item(i));
       i = i - 1;
     }
+    return el;
+  };
+
+  convert_to = function(newTagName) {
+    return function(el, queue) {
+      var childNodes, elChildNode, elNew, nodesToMove, _i, _j, _len, _len1;
+      if (!el.parentNode) {
+        throw new Error('orphaned node given to convert_to');
+      }
+      childNodes = el.childNodes;
+      elNew = el.parentNode.insertBefore(document.createElement(newTagName), el);
+      nodesToMove = [];
+      for (_i = 0, _len = childNodes.length; _i < _len; _i++) {
+        elChildNode = childNodes[_i];
+        nodesToMove.push(elChildNode);
+      }
+      for (_j = 0, _len1 = nodesToMove.length; _j < _len1; _j++) {
+        elChildNode = nodesToMove[_j];
+        elNew.appendChild(elChildNode);
+      }
+      if (el.childNodes.length !== 0) {
+        throw new Error('el.childNodes should be 0');
+      }
+      el.parentNode.removeChild(el);
+      checkQueue(queue);
+      return elNew;
+    };
+  };
+
+  assert = function(expr) {
+    if (!expr) {
+      throw new Error('assertion failed');
+    }
   };
 
   keep_children_scrubber = function(el, queue) {
-    var childNodes, i;
+    var childNodes, elInsertBefore, i;
+    assert(queue.indexOf(el) === -1);
+    checkQueue(queue);
+    if (!el.parentNode) {
+      throw new Error('orphaned node given to convert_to');
+    }
     enqueue_children(el, queue);
+    checkQueue(queue);
     childNodes = el.childNodes;
+    elInsertBefore = el;
     if (childNodes) {
       i = childNodes.length - 1;
       while (i >= 0) {
-        el.parentNode.insertBefore(childNodes[i], el);
+        elInsertBefore = el.parentNode.insertBefore(childNodes[i], elInsertBefore);
+        checkQueue(queue);
         i = i - 1;
       }
     }
+    checkQueue(queue);
     el.parentNode.removeChild(el);
+    checkQueue(queue);
+    return null;
   };
 
   link_scrubber = function(attribute, scrub_link) {
@@ -127,9 +187,8 @@
       });
       this.listenTo(this.model, "validation-error", function(error) {
         if (error.field === _this.options.text) {
-          _this.displayError(error);
+          return _this.displayError(error);
         }
-        return console.log;
       });
       return this.render();
     };
@@ -139,7 +198,7 @@
     };
 
     Editor.prototype._clean_node_core = function(node, rules) {
-      var el, firstChild, queue, tagName, tag_filter;
+      var el, firstChild, queue, tagName, tag_filter, tag_filters, _i, _len;
       if (!node) {
         return;
       }
@@ -155,16 +214,24 @@
       enqueue_children(node, queue);
       while (queue.length > 0) {
         el = queue.pop();
+        checkQueue(queue);
         tagName = el.tagName.toLowerCase();
         if (!(tagName in rules)) {
           keep_children_scrubber(el, queue);
         } else {
-          tag_filter = rules[tagName];
-          if (typeof tag_filter !== 'function') {
-            throw new Error('Fixie : error : found a tag_filter that wasn\'t a function');
+          tag_filters = rules[tagName];
+          if (typeof tag_filters === 'function') {
+            tag_filters = [tag_filters];
           }
-          tag_filter(el, queue);
+          for (_i = 0, _len = tag_filters.length; _i < _len; _i++) {
+            tag_filter = tag_filters[_i];
+            if (typeof tag_filter !== 'function') {
+              throw new Error('Fixie : error : found a tag_filter that wasn\'t a function');
+            }
+            el = tag_filter(el, queue);
+          }
         }
+        checkQueue(queue);
       }
     };
 
@@ -479,6 +546,50 @@
 
   })(PlainTextEditor);
 
+  Checkbox = (function(_super) {
+    __extends(Checkbox, _super);
+
+    function Checkbox() {
+      this.initialize = __bind(this.initialize, this);
+      this.events = __bind(this.events, this);
+      this.detectChange = __bind(this.detectChange, this);
+      this.render = __bind(this.render, this);
+      _ref6 = Checkbox.__super__.constructor.apply(this, arguments);
+      return _ref6;
+    }
+
+    Checkbox.prototype.render = function() {
+      var checked, html;
+      checked = this.model.get(this.options.property);
+      html = "<form onsubmit='event.preventDefault()'>\n  <label class='fixie-checkbox'>\n    <input type='checkbox' name='" + this.options.property + "' " + (checked ? 'checked' : '') + ">\n    <span>&nbsp;" + (this.options.description || this.options.property) + "</span>\n  </label>\n</form>";
+      this.$el.html(html);
+      return this;
+    };
+
+    Checkbox.prototype.detectChange = function() {
+      var checked;
+      checked = this.$('input').is(':checked');
+      return this.model.set(this.options.property, checked);
+    };
+
+    Checkbox.prototype.events = function() {
+      return {
+        "change input[type=checkbox]": 'detectChange'
+      };
+    };
+
+    Checkbox.prototype.initialize = function() {
+      if (!this.el) {
+        throw new Error("Couldn't find el");
+      }
+      this.listenTo(this.model, "change:" + this.options.property, this.render);
+      return this.render();
+    };
+
+    return Checkbox;
+
+  })(Backbone.View);
+
   Fixie = (function() {
     function Fixie() {}
 
@@ -491,6 +602,8 @@
     Fixie.URLEditor = URLEditor;
 
     Fixie.Preview = Preview;
+
+    Fixie.Checkbox = Checkbox;
 
     return Fixie;
 

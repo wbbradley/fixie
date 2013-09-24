@@ -21,10 +21,18 @@ handlebars_render = (template_name, context) ->
 
 render = handlebars_render
 
+checkQueue = (queue) ->
+  for el in queue
+    if not el.parentNode
+      throw new Error 'orphaned node in queue'
+
 enqueue_children = (el, queue) ->
+  checkQueue(queue)
+
   if el.children
-    for el in el.children
-      queue.push el
+    for elChild in el.children
+      assert queue.indexOf(elChild) is -1
+      queue.push elChild
 
   return
 
@@ -52,18 +60,48 @@ bare_scrubber = (el, queue) ->
   while i >= 0
     el.removeAttributeNode el.attributes.item i
     i = i - 1
-  return
+  return el
+
+convert_to = (newTagName) ->
+  return (el, queue) ->
+    if not el.parentNode
+      throw new Error 'orphaned node given to convert_to'
+    childNodes = el.childNodes
+    elNew = el.parentNode.insertBefore(document.createElement(newTagName), el)
+    nodesToMove = []
+    for elChildNode in childNodes
+      nodesToMove.push elChildNode
+    for elChildNode in nodesToMove
+      elNew.appendChild elChildNode
+    if el.childNodes.length isnt 0
+      throw new Error 'el.childNodes should be 0'
+    el.parentNode.removeChild el
+    checkQueue(queue)
+    return elNew
+
+assert = (expr) ->
+  if not expr
+    throw new Error 'assertion failed'
 
 keep_children_scrubber = (el, queue) ->
+  assert queue.indexOf(el) is -1
+  checkQueue(queue)
+  if not el.parentNode
+    throw new Error 'orphaned node given to convert_to'
   enqueue_children el, queue
+  checkQueue(queue)
   childNodes = el.childNodes
+  elInsertBefore = el
   if childNodes
     i = childNodes.length - 1
     while i >= 0
-      el.parentNode.insertBefore childNodes[i], el
+      elInsertBefore = el.parentNode.insertBefore childNodes[i], elInsertBefore
+      checkQueue(queue)
       i = i - 1
+  checkQueue(queue)
   el.parentNode.removeChild el
-  return
+  checkQueue(queue)
+  return null
 
 link_scrubber = (attribute, scrub_link) ->
   return (el, queue) ->
@@ -93,7 +131,6 @@ class Editor extends Backbone.View
     @listenTo @model, "validation-error", (error) =>
       if error.field is @options.text
         @displayError error
-      console.log
     do @render
   cmd: (cmd_name) =>
     console.log "Fixie.Editor : info : running command '#{cmd_name}'"
@@ -115,14 +152,19 @@ class Editor extends Backbone.View
 
     while queue.length > 0
       el = queue.pop()
+      checkQueue(queue)
       tagName = el.tagName.toLowerCase()
       if tagName not of rules
         keep_children_scrubber el, queue
       else
-        tag_filter = rules[tagName]
-        if typeof tag_filter isnt 'function'
-          throw new Error 'Fixie : error : found a tag_filter that wasn\'t a function'
-        tag_filter el, queue
+        tag_filters = rules[tagName]
+        if typeof tag_filters is 'function'
+          tag_filters = [tag_filters]
+        for tag_filter in tag_filters
+          if typeof tag_filter isnt 'function'
+            throw new Error 'Fixie : error : found a tag_filter that wasn\'t a function'
+          el = tag_filter el, queue
+      checkQueue(queue)
     return
 
   clean_editor_content: =>
