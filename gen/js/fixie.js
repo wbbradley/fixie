@@ -334,12 +334,14 @@
       };
       template_result = render(template, context);
       this.$el.html(template_result);
-      this.listenToOnce(this.model, 'change', this.render);
       return this;
     };
 
     URLEditor.prototype.initialize = function() {
-      return this.render();
+      this.render();
+      if (!this.model.has(this.options.text)) {
+        return this.listenToOnce(this.model, 'change', this.render);
+      }
     };
 
     return URLEditor;

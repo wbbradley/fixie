@@ -220,12 +220,12 @@ class URLEditor extends Editor
       text: @model.get(@options.text)
     template_result = render template, context
     @$el.html(template_result)
-    @listenToOnce @model, 'change', @render
     @
 
   initialize: =>
-    # TODO consider pre-scrubbing the HTML prior to rendering
-    do @render
+    @render()
+    if not @model.has(@options.text)
+      @listenToOnce @model, 'change', @render
 
 class PlainTextEditor extends Editor
   template: 'fixie-plain-editor'
