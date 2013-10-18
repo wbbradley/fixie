@@ -374,7 +374,7 @@
     PlainTextEditor.prototype.clean_editor_content = function() {
       var $el, content, htmlInEl, len;
       $el = this.$('.fixie-editor-content');
-      content = $el[0].innerText;
+      content = $el.text();
       content = content.replace(/[\r\n]/g, ' ');
       while (true) {
         len = content.length;

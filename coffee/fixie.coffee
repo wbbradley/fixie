@@ -236,7 +236,7 @@ class PlainTextEditor extends Editor
 
   clean_editor_content: =>
     $el = @$('.fixie-editor-content')
-    content = $el[0].innerText
+    content = $el.text()
     content = content.replace(/[\r\n]/g, ' ')
     while true
       len = content.length
