@@ -340,8 +340,12 @@ class DateEditor extends PlainTextEditor
   _on_edit_core: =>
     console.log "Fixie.DateEditor : info : #{@options.text} was edited"
     try
+      format = @options.format or 'iso'
+      val = (new Date(@clean_editor_content())).toISOString()
+      if format == 'date'
+        val = val.substring(0, 10) # Grab the date part
       prop_set = {}
-      prop_set[@options.text] = (new Date(@clean_editor_content())).toISOString()
+      prop_set[@options.text] = val
       @stopListening @model, "change:#{@options.text}"
       @model.set prop_set
     catch e
