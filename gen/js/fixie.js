@@ -532,11 +532,16 @@
     }
 
     DateEditor.prototype._on_edit_core = function() {
-      var e, prop_set;
+      var e, format, prop_set, val;
       console.log("Fixie.DateEditor : info : " + this.options.text + " was edited");
       try {
+        format = this.options.format || 'iso';
+        val = (new Date(this.clean_editor_content())).toISOString();
+        if (format === 'date') {
+          val = val.substring(0, 10);
+        }
         prop_set = {};
-        prop_set[this.options.text] = (new Date(this.clean_editor_content())).toISOString();
+        prop_set[this.options.text] = val;
         this.stopListening(this.model, "change:" + this.options.text);
         this.model.set(prop_set);
       } catch (_error) {
