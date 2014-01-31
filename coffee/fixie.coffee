@@ -105,7 +105,6 @@ keep_children_scrubber = (el, queue) ->
 
 link_scrubber = (attribute, scrub_link) ->
   return (el, queue) ->
-    enqueue_children el, queue
     scrubbed_attr = null
     if el.hasAttribute attribute
       scrubbed_attr = scrub_link el.getAttribute attribute
@@ -265,7 +264,6 @@ class RichTextEditor extends Editor
   template: 'fixie-rich-editor'
   rules:
     'a': link_scrubber 'href', scrub_link
-    'img': link_scrubber 'src', scrub_link
     'b': bare_scrubber
     'i': bare_scrubber
     'br': bare_scrubber
