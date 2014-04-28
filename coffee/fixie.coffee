@@ -124,13 +124,15 @@ class Editor extends Backbone.View
   displayError: (error) =>
     @el.style.backgroundColor = '#ffbbbb'
 
-  initialize: =>
+  initialize: (options)=>
     @listenTo @model, "synced", =>
       @el.style.backgroundColor = 'white'
     @listenTo @model, "validation-error", (error) =>
       if error.field is @options.text
         @displayError error
-    do @render
+    unless options.dont_render
+      do @render
+
   cmd: (cmd_name) =>
     console.log "Fixie.Editor : info : running command '#{cmd_name}'"
 
